@@ -1,0 +1,16 @@
+SVM-HMM Version V3.10
+0 # kernel type
+3 # kernel parameter -d 
+1 # kernel parameter -g 
+1 # kernel parameter -s 
+1 # kernel parameter -r 
+empty# kernel parameter -u 
+32 # highest feature index 
+2 # number of emission features 
+4 # number of classes 
+1 # HMM order of transitions 
+0 # HMM order of emissions 
+1 # loss function 
+2 # number of support vectors plus 1 
+0 # threshold b, each following line is a SV (starting with alpha*y)
+1 5:106.56847 6:24.043577 9:-199.44902 10:102.45663 11:92.262054 13:-221.54536 14:-5.2916057e-12 15:107.54509 16:134.99757 17:-256.58636 18:-3.4395438e-11 20:109.61019 24:16.17309 25:-68.476044 26:7.1210489 27:36.548656 28:-10.602352 29:22.194738 30:-12.6931 31:9.7317448 #
