@@ -18,6 +18,10 @@ This program is granted free of charge for non-commercial research and
 education purposes. However you must obtain a license from the author
 to use it for commercial purposes.
 
+The author has granted permission to use the svm_* programs within the
+specific use of the streamcorpus_zoner package, which segments text
+files being processed by streamcorpus_pipeline.
+
 Scientific results produced using the software provided shall
 acknowledge the use of SVM-Struct. Please cite as  
 
