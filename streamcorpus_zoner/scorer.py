@@ -57,7 +57,6 @@ def score(zones, labels):
 
 
 
-
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -72,6 +71,14 @@ if __name__ == '__main__':
 
     ## classify example doc using simple zoner
     zoner_simple = zoner('simple')
+    zones = zoner_simple.classify(data)
+    scores = score(zones, labels)
+
+    print 'Precision: %f, Recall: %f, F-score: %f' % \
+            (scores['P'], scores['R'], scores['F'])
+
+    ## classify example doc using window zoner
+    zoner_simple = zoner('window')
     zones = zoner_simple.classify(data)
     scores = score(zones, labels)
 
