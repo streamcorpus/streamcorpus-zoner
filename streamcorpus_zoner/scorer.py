@@ -19,11 +19,12 @@ def extract_labels(doc):
     labels = list()
     data = list()
     for line in doc:
-        ## coarse-grain over the given labels
+        ## coarse-grain over the given labels which go from
+        ## 0 to 3, with 2 being body
         if int(line[0]) == 2:
-            labels.append('body')
+            labels.append(1)
         else:
-            labels.append('not_body')
+            labels.append(0)
         data.append(line[2:])
 
     return labels, data
@@ -32,6 +33,12 @@ def score(zones, labels):
     '''
     Compare the classification output in `zones' to the ground truth
     data in `labels'. Compute precision, recall, and f-score.
+
+    Zones:
+    1 means 'body'
+    0 means 'not_body'
+
+    and the 'body' is assumed to be the positive (in the f-score sense)
     '''
 
     assert len(zones) == len(labels)
@@ -44,10 +51,10 @@ def score(zones, labels):
     for i in xrange(len(zones)):
         zone = zones[i]
         label = labels[i]
-        TP += label == zone and label == 'body'
-        TN += label == zone and label == 'not_body'
-        FP += not label == zone and label == 'not_body'
-        FN += not label == zone and label == 'body'
+        TP += label == zone and label == 1
+        TN += label == zone and label == 0
+        FP += not label == zone and label == 0
+        FN += not label == zone and label == 1
 
     P = TP / (TP + FP)
     R = TP / (TP + FN)

@@ -25,7 +25,8 @@ class zoner(object):
 
     # def process_item(self, si, context=None):
 
-    #     tags = run_zoner(si.body.clean_visible)
+    #     #tags = run_zoner(si.body.clean_visible)
+    #     tags = self.classify(si.body.raw)
     #     for line_number, zone_number in tags:
     #         off = Offset(
     #             type=OffsetType.LINES,
@@ -35,14 +36,21 @@ class zoner(object):
     #         )
     #         #si.body.zones
 
+    #         ## need to do something with off
+
+    #     return si
+
     def classify_line_simple(self, line):
         '''
         A heuristic for classifying lines
+
+        1 means 'body'
+        0 means 'not_body'
         '''
         if fraction_stop_words_chars(line) > fraction_punctuation(line):
-            return 'body'
+            return 1
         else:
-            return 'not_body'
+            return 0
 
     def classify_simple(self, doc):
         '''
@@ -59,6 +67,10 @@ class zoner(object):
         to look at windows to pick out the interval that contains the body.
 
         `thresh' sets the threshold proportion of lines classified as body 
+
+        Zones:
+        1 means 'body'
+        0 means 'not_body'
         '''
         simple_zones = list()
         for line in doc:
@@ -68,27 +80,27 @@ class zoner(object):
         i = 0
         j = len(simple_zones) - 1
         proportion = sum(
-                (zone == 'body' for zone in simple_zones)
+                (zone == 1 for zone in simple_zones)
             ) / len(simple_zones)
         # print proportion, i, j
         while i < j:
 
             oldi = i
             for i in xrange(oldi+1, len(simple_zones)):
-                if simple_zones[i] == 'body':
+                if simple_zones[i] == 1:
                     break
 
             oldj = j
             for j in xrange(oldj-1, -1, -1):
-                if simple_zones[j] == 'body':
+                if simple_zones[j] == 1:
                     break
 
             new_proportion_shift_i = sum(
-                (zone == 'body' for zone in simple_zones[i:oldj+1])
+                (zone == 1 for zone in simple_zones[i:oldj+1])
             ) / len(simple_zones[i:oldj+1])
 
             new_proportion_shift_j = sum(
-                (zone == 'body' for zone in simple_zones[oldi:j+1])
+                (zone == 1 for zone in simple_zones[oldi:j+1])
             ) / len(simple_zones[oldi:j+1])
 
             if new_proportion_shift_i > new_proportion_shift_j:
@@ -108,9 +120,9 @@ class zoner(object):
         # for idx, zone in enumerate(simple_zones):
         #     print idx, zone
 
-        beginning = ['not_body' for _ in xrange(i)]
-        middle = ['body' for _ in xrange(i, j + 1)] 
-        end = ['not_body' for _ in xrange(j+1, len(simple_zones))]
+        beginning = [0 for _ in xrange(i)]
+        middle = [1 for _ in xrange(i, j + 1)] 
+        end = [0 for _ in xrange(j+1, len(simple_zones))]
 
         zones = list()
         zones.extend(beginning)
