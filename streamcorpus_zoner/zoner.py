@@ -4,7 +4,9 @@
 #from streamcorpus import OffsetType, Offset
 from __future__ import division
 from features import fraction_stop_words_chars, fraction_punctuation
+from features import get_all_features, convert_fv_to_string
 
+import pickle
 
 class zoner(object):
 
@@ -15,10 +17,17 @@ class zoner(object):
         '''
         available_classifiers = {
             'simple': self.classify_simple,
-            'window': self.classify_window
+            'window': self.classify_window,
+            'seqlearn': self.classify_seqlearn
 
         }
+
         self.classify = available_classifiers[classifier]
+
+        if classifier == 'seqlearn':
+            pkl_file = open('seqlearn.pkl', 'r')
+            (self.clf, self.fh) = pickle.load(pkl_file)
+            pkl_file.close()
 
 
     # def process_item(self, si, context=None):
@@ -111,13 +120,6 @@ class zoner(object):
             if new_proportion > thresh:
                 break
 
-
-
-        # print 
-
-        # for idx, zone in enumerate(simple_zones):
-        #     print idx, zone
-
         beginning = [0 for _ in xrange(i)]
         middle = [1 for _ in xrange(i, j + 1)] 
         end = [0 for _ in xrange(j+1, len(simple_zones))]
@@ -128,4 +130,33 @@ class zoner(object):
         zones.extend(end)
 
         return zones
-        
+    
+    def classify_seqlearn(self, doc):
+        '''
+        Uses the seqlearn trained classifier to classify a doc.
+
+        First convert the doc to the correct input format to the
+        model. Then classify.
+        '''
+        features, doc_len = self.get_seqlearn_features(doc)
+        lengths = [doc_len] ## since this can be used to classify many
+        zones = self.clf.predict(features, lengths)
+        #print zones
+        return zones
+
+    def get_seqlearn_features(self, sequence):
+        '''
+        Return the feature representation of `sequence' in
+        the sparse-matrix seqlearn required format.
+
+        Also return the length (i.e. number of lines) of 
+        the sequence.
+        '''
+        x_raw = list()
+        for sample in sequence:
+            fv = get_all_features(sample)
+            fv_string = convert_fv_to_string(fv)
+            x_raw.append(fv_string)
+        doc_len = len(x_raw)
+        x_sparse = self.fh.transform(x_raw)
+        return x_sparse, doc_len

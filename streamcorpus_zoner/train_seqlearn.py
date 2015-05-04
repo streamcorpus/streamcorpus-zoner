@@ -9,8 +9,10 @@ from seqlearn.perceptron import StructuredPerceptron
 from sklearn.metrics import accuracy_score
 from sklearn.feature_extraction import FeatureHasher
 
-from features import get_all_features
+from features import get_all_features, convert_fv_to_string
 from scorer import score
+
+import pickle
 
 
 def process_sequences(sequences, labels, seq_lengths):
@@ -52,22 +54,11 @@ def process_sequences(sequences, labels, seq_lengths):
         labels.extend(seq_labels)
         seq_lengths.append(len(seq_labels))
 
-
 def describe(X, lengths):
     print("{0} sequences, {1} tokens.".format(len(lengths), X.shape[0]))
 
-def convert_fv_to_string(fv):
-    '''
-    Takes a feature vector `fv' and converts it to a string
-    representation of the features as required for seqlearn
-    and the sklearn.feature_extraction.FeatureHasher (the 'hashing trick')
-    '''
-    for feature, val in fv.iteritems():
-        rounded_val = round(val*1000) ## nearest int between 0 and 100
-        yield '%s:%d' % (feature, rounded_val)
 
-
-def load_data():
+def load_data(fh):
     '''
     Splits data into test and training sections in specified directory.
 
@@ -76,10 +67,11 @@ def load_data():
 
     Calls sklearn.feature_extraction.FeatureHasher (the 'hashing trick')
     to make sparse feature vectors
+
+    `fh' is the FeatureHasher
     '''
 
     files = glob('../data/*.html')
-    fh = FeatureHasher(n_features=(2 ** 16), input_type='string')
 
     # 80% training, 20% test
     print 'Loading training data...'
@@ -104,8 +96,10 @@ def load_data():
 
 
 if __name__ == "__main__":
+    fh = FeatureHasher(n_features=(2 ** 16), input_type='string')
+
     ## augment to specify path
-    train, test = load_data()
+    train, test = load_data(fh)
     X_train, y_train, lengths_train = train
     X_test, y_test, lengths_test = test
 
@@ -113,19 +107,21 @@ if __name__ == "__main__":
     clf = StructuredPerceptron(verbose=True, max_iter=1000)
     print("Training %s" % clf)
     clf.fit(X_train, y_train, lengths_train)
-
     y_pred = clf.predict(X_test, lengths_test)
+
+    ## save the model and the featurehasher
+    output = open('seqlearn.pkl', 'wb' )
+    pickle.dump((clf, fh) , output)
+    output.close()
 
     ## score for each zone as the 'positive'
     ## in the f-score sense
-
     for zone in xrange(4):
         scores = score(y_pred, y_test, positive=zone)
         print 'Zone: %d, Precision: %f, Recall: %f, F-score: %f' % \
                 (zone, scores['P'], scores['R'], scores['F'])
-
     print
-    
+
     ## uncomment to diagnose specific errors
     ## get the test data to diagnose errors
     files = glob('../data/*.html')
@@ -144,6 +140,8 @@ if __name__ == "__main__":
 
     # for y in y_pred:
     #     print y
+
+
 
 
 

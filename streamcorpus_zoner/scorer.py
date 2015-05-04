@@ -19,12 +19,7 @@ def extract_labels(doc):
     labels = list()
     data = list()
     for line in doc:
-        ## coarse-grain over the given labels which go from
-        ## 0 to 3, with 2 being body
-        if int(line[0]) == 2:
-            labels.append(1)
-        else:
-            labels.append(0)
+        labels.append(int(line[0]))
         data.append(line[2:])
 
     return labels, data
@@ -75,19 +70,33 @@ if __name__ == '__main__':
     ## separate the labels from the data
     labels, data = extract_labels(example_doc)
 
-    ## classify example doc using simple zoner
-    zoner_simple = zoner('simple')
-    zones = zoner_simple.classify(data)
-    scores = score(zones, labels)
+    ## need coarse grained labels for the zoners
+    ## that can only classify body or not_body
+    coarse_labels = list()
+    for label in labels:
+        if label == 2:
+            coarse_labels.append(1)
+        else:
+            coarse_labels.append(0)
 
-    print 'Precision: %f, Recall: %f, F-score: %f' % \
-            (scores['P'], scores['R'], scores['F'])
+    zoners = ['simple', 'window', 'seqlearn']
+    ## classify example doc using all zoners
+    for zoner_name in zoners:
+        current_zoner = zoner(zoner_name)
+        zones = current_zoner.classify(data)
 
-    ## classify example doc using window zoner
-    zoner_simple = zoner('window')
-    zones = zoner_simple.classify(data)
-    scores = score(zones, labels)
+        ## these zoners classify all zones
+        if zoner_name == 'seqlearn':
+            print 'Zoner: %s' % zoner_name
+            for zone in xrange(4):
+                scores = score(zones, labels, positive=zone)
+                print '\tZone: %d, Precision: %f, Recall: %f, F-score: %f' % \
+                        (zone, scores['P'], scores['R'], scores['F'])
 
-    print 'Precision: %f, Recall: %f, F-score: %f' % \
-            (scores['P'], scores['R'], scores['F'])
+        ## these can only classify body or not_body
+        ## they compare to coarse_labels
+        else:
+            scores = score(zones, coarse_labels)
+            print 'Zoner: %s, Precision: %f, Recall: %f, F-score: %f' % \
+                (zoner_name, scores['P'], scores['R'], scores['F'])
 

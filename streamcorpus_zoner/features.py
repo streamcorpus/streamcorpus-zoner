@@ -106,6 +106,19 @@ def get_all_features(line):
         fv[feature_name] = feature(line)
     return fv
 
+def convert_fv_to_string(fv, precision=1000):
+    '''
+    Takes a feature vector `fv' and converts it to a string
+    representation of the features as required for seqlearn
+    and the sklearn.feature_extraction.FeatureHasher (the 'hashing trick')
+
+    `precision' stores how many digits the floats are rounded to in storing
+    the features
+    '''
+    for feature, val in fv.iteritems():
+        rounded_val = round(val*precision) ## nearest int between 0 and 100
+        yield '%s:%d' % (feature, rounded_val)
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument(
