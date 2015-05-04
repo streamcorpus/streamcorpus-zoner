@@ -96,6 +96,15 @@ available_features = {
     'capital chars': fraction_capitalized_words_char
     }
 
+def get_all_features(line):
+    '''
+    Takes a line of HTML and makes a dictionary of all features
+    in `available_features'
+    '''
+    fv = dict()
+    for feature_name, feature in available_features.iteritems():
+        fv[feature_name] = feature(line)
+    return fv
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -116,8 +125,10 @@ if __name__ == '__main__':
 
         out = ['label: %d' % zone] 
 
-        for feature_name, feature in available_features.iteritems():
-            out.append(' %s:%f' % (feature_name, feature(data)))
+        fv = get_all_features(data)
+
+        for feature_name, feature_val in fv.iteritems():
+            out.append(' %s:%f' % (feature_name, feature_val))
 
         #print data
         if fraction_stop_words_chars(data) > fraction_punctuation(data):

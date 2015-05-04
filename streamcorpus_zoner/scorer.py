@@ -29,16 +29,15 @@ def extract_labels(doc):
 
     return labels, data
 
-def score(zones, labels):
+def score(zones, labels, positive=1):
     '''
     Compare the classification output in `zones' to the ground truth
     data in `labels'. Compute precision, recall, and f-score.
 
-    Zones:
-    1 means 'body'
-    0 means 'not_body'
+    `positive' sets the value of the zone that is taken to be positive
+    (in the f-score sense)
 
-    and the 'body' is assumed to be the positive (in the f-score sense)
+    Everything else is taken to be negative.
     '''
 
     assert len(zones) == len(labels)
@@ -51,10 +50,10 @@ def score(zones, labels):
     for i in xrange(len(zones)):
         zone = zones[i]
         label = labels[i]
-        TP += label == zone and label == 1
-        TN += label == zone and label == 0
-        FP += not label == zone and label == 0
-        FN += not label == zone and label == 1
+        TP += label == zone and label == positive
+        TN += label == zone and label != positive
+        FP += not label == zone and label != positive
+        FN += not label == zone and label == positive
 
     P = TP / (TP + FP)
     R = TP / (TP + FN)

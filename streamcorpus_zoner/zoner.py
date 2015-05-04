@@ -1,8 +1,6 @@
 '''streamcorpus-pipeline transform for generating line-based "zone" assignments
 
 '''
-
-
 #from streamcorpus import OffsetType, Offset
 from __future__ import division
 from features import fraction_stop_words_chars, fraction_punctuation
