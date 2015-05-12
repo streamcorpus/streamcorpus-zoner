@@ -4,12 +4,16 @@ Use seqlearn to train and test seqlearn as a HMM zoner
 from __future__ import division
 
 from glob import glob
+import argparse
+import yakonfig
+import dblogger
 
 from seqlearn.perceptron import StructuredPerceptron
 from sklearn.metrics import accuracy_score
 from sklearn.feature_extraction import FeatureHasher
 
 from features import get_all_features, convert_fv_to_string
+from zoner import Zoner
 from scorer import score
 
 import pickle
@@ -44,7 +48,8 @@ def process_sequences(sequences, labels, seq_lengths):
         seq_labels = list()
         for idx, line in enumerate(sequence):
             label = int(line[0])
-            seq_labels.append(label)
+            zlabel = Zoner._map_training_data_to_ZoneType[label]
+            seq_labels.append(zlabel)
 
             data = line[2:]
             fv = get_all_features(data)
@@ -58,7 +63,7 @@ def describe(X, lengths):
     print("{0} sequences, {1} tokens.".format(len(lengths), X.shape[0]))
 
 
-def load_data(fh):
+def load_data(fh, data_dir):
     '''
     Splits data into test and training sections in specified directory.
 
@@ -69,9 +74,10 @@ def load_data(fh):
     to make sparse feature vectors
 
     `fh' is the FeatureHasher
+    `data_dir' is the path to the directory containing the data
     '''
 
-    files = glob('../data/*.html')
+    files = glob(data_dir + '/*')
 
     # 80% training, 20% test
     print 'Loading training data...'
@@ -96,15 +102,31 @@ def load_data(fh):
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        'dir', 
+        nargs='?', 
+        default='../data',
+        help='directory containing the data'
+    )
+    parser.add_argument(
+        '--iter',  
+        default=1000,
+        type=int,
+        help='number of training iterations'
+    )
+    args = yakonfig.parse_args(parser, [yakonfig, dblogger])
+    data_dir = args.dir
+    niter = args.iter
+
     fh = FeatureHasher(n_features=(2 ** 16), input_type='string')
 
-    ## augment to specify path
-    train, test = load_data(fh)
+    train, test = load_data(fh, data_dir)
     X_train, y_train, lengths_train = train
     X_test, y_test, lengths_test = test
 
 
-    clf = StructuredPerceptron(verbose=True, max_iter=1000)
+    clf = StructuredPerceptron(verbose=True, max_iter=niter)
     print("Training %s" % clf)
     clf.fit(X_train, y_train, lengths_train)
     y_pred = clf.predict(X_test, lengths_test)
@@ -116,9 +138,10 @@ if __name__ == "__main__":
 
     ## score for each zone as the 'positive'
     ## in the f-score sense
-    for zone in xrange(4):
+    for zi in xrange(4):
+        zone = Zoner._map_training_data_to_ZoneType[zi]
         scores = score(y_pred, y_test, positive=zone)
-        print 'Zone: %d, Precision: %f, Recall: %f, F-score: %f' % \
+        print 'Zone: %s, Precision: %f, Recall: %f, F-score: %f' % \
                 (zone, scores['P'], scores['R'], scores['F'])
     print
 
@@ -140,7 +163,6 @@ if __name__ == "__main__":
 
     # for y in y_pred:
     #     print y
-
 
 
 

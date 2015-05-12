@@ -1,63 +1,105 @@
 '''streamcorpus-pipeline transform for generating line-based "zone" assignments
+   and stores them in StreamItem.body.zones
 
 '''
-#from streamcorpus import OffsetType, Offset
 from __future__ import division
+
+import os
+import pickle
+
+from streamcorpus import OffsetType, Offset, Zone, ZoneType
+
 from features import fraction_stop_words_chars, fraction_punctuation
 from features import get_all_features, convert_fv_to_string
 
-import pickle
 
-class zoner(object):
 
+class Zoner(object):
 
     def __init__(self, classifier):
         '''
         picks which zoner to use
         '''
-        available_classifiers = {
-            'simple': self.classify_simple,
-            'window': self.classify_window,
-            'seqlearn': self.classify_seqlearn
-
+        self.classifier_map ={
+        'simple':self.classify_simple,
+        'window':self.classify_window,
+        'seqlearn':self.classify_seqlearn
         }
 
-        self.classify = available_classifiers[classifier]
+        assert(set(Zoner.available_classifiers) == set(self.classifier_map.keys()))
 
-        if classifier == 'seqlearn':
-            pkl_file = open('seqlearn.pkl', 'r')
+        self.classifier = classifier
+        self.classify = self.classifier_map[self.classifier]
+
+        if self.classifier == 'seqlearn':
+            currrent_dir = os.path.dirname(os.path.abspath(__file__))
+            pkl_file = open(currrent_dir + '/seqlearn.pkl', 'r')
             (self.clf, self.fh) = pickle.load(pkl_file)
             pkl_file.close()
 
+    ## static list of available classifiers
+    available_classifiers = ['simple', 'window', 'seqlearn']
 
-    # def process_item(self, si, context=None):
+    ## static mapping of line labels in training data to ZoneType
+    _map_training_data_to_ZoneType = {
+        0: ZoneType.HEADER,
+        1: ZoneType.TITLE,
+        2: ZoneType.BODY,
+        3: ZoneType.FOOTER
+    }
 
-    #     #tags = run_zoner(si.body.clean_visible)
-    #     tags = self.classify(si.body.raw)
-    #     for line_number, zone_number in tags:
-    #         off = Offset(
-    #             type=OffsetType.LINES,
-    #             first=tag,
-    #             length=1,
-    #             value=zone_number,
-    #         )
-    #         #si.body.zones
+    def __call__(self, si, context):
+        si = self.process_item(si, context)
+        return si
 
-    #         ## need to do something with off
+    def process_item(self, si, context=None):
+        '''
+        runs the zoner on a stream item and stores the zones
+        and offsets in StreamItem.body.zones
+        '''
+        if not si.body or not si.body.clean_html:
+            return si
 
-    #     return si
+        if not si.body.zones:
+            si.body.zones = dict()
+
+        if not self.classifier in si.body.zones:
+            si.body.zones[self.classifier] = dict()
+
+        zone_dict = si.body.zones[self.classifier]
+
+        doc_as_string = si.body.clean_html.decode('utf-8')
+        doc = doc_as_string.split('\n')
+        tags = self.classify(doc)
+
+        char_idx = 0
+        for idx, line in enumerate(doc):
+            tag = tags[idx]
+            if not tag in zone_dict:
+                zone_dict[tag] = Zone(zone_type=tag, offsets=dict())
+                zone_dict[tag].offsets[OffsetType.CHARS] = list()
+
+            ## add new zone tag/offset to zone
+            off = Offset(
+                type=OffsetType.CHARS,
+                first=char_idx,
+                length=len(line),
+            )
+            zone_dict[tag].offsets[OffsetType.CHARS].append(off)
+
+            ## accumulate the line to update char index
+            char_idx += len(line)
+
+        return si
 
     def classify_line_simple(self, line):
         '''
         A heuristic for classifying lines
-
-        1 means 'body'
-        0 means 'not_body'
         '''
         if fraction_stop_words_chars(line) > fraction_punctuation(line):
-            return 1
+            return ZoneType.BODY
         else:
-            return 0
+            return ZoneType.UNZONED
 
     def classify_simple(self, doc):
         '''
@@ -74,10 +116,6 @@ class zoner(object):
         to look at windows to pick out the interval that contains the body.
 
         `thresh' sets the threshold proportion of lines classified as body 
-
-        Zones:
-        1 means 'body'
-        0 means 'not_body'
         '''
         simple_zones = list()
         for line in doc:
@@ -87,27 +125,27 @@ class zoner(object):
         i = 0
         j = len(simple_zones) - 1
         proportion = sum(
-                (zone == 1 for zone in simple_zones)
+                (zone == ZoneType.BODY for zone in simple_zones)
             ) / len(simple_zones)
         # print proportion, i, j
         while i < j:
 
             oldi = i
             for i in xrange(oldi+1, len(simple_zones)):
-                if simple_zones[i] == 1:
+                if simple_zones[i] == ZoneType.BODY:
                     break
 
             oldj = j
             for j in xrange(oldj-1, -1, -1):
-                if simple_zones[j] == 1:
+                if simple_zones[j] == ZoneType.BODY:
                     break
 
             new_proportion_shift_i = sum(
-                (zone == 1 for zone in simple_zones[i:oldj+1])
+                (zone == ZoneType.BODY for zone in simple_zones[i:oldj+1])
             ) / len(simple_zones[i:oldj+1])
 
             new_proportion_shift_j = sum(
-                (zone == 1 for zone in simple_zones[oldi:j+1])
+                (zone == ZoneType.BODY for zone in simple_zones[oldi:j+1])
             ) / len(simple_zones[oldi:j+1])
 
             if new_proportion_shift_i > new_proportion_shift_j:
@@ -120,9 +158,9 @@ class zoner(object):
             if new_proportion > thresh:
                 break
 
-        beginning = [0 for _ in xrange(i)]
-        middle = [1 for _ in xrange(i, j + 1)] 
-        end = [0 for _ in xrange(j+1, len(simple_zones))]
+        beginning = [ZoneType.UNZONED for _ in xrange(i)]
+        middle = [ZoneType.BODY for _ in xrange(i, j + 1)] 
+        end = [ZoneType.UNZONED for _ in xrange(j+1, len(simple_zones))]
 
         zones = list()
         zones.extend(beginning)
